@@ -1,0 +1,283 @@
+---
+title: "EIOM 2024 <br> Partie 1 - Analyse en composantes principales"
+author: "Anne-Sophie Charest"
+date: 2024-08-28
+format: 
+  html:
+    embed-resources: true
+    toc: true
+    toc-title: Plan
+    number-sections: true
+---
+
+Charger les librairies nécessaires :
+
+```{r, output = FALSE}
+library(skimr)
+library("ggplot2")
+library("GGally")
+library("factoextra")
+```
+
+# Exemple avec les données USArrest
+
+Cet exemple est basé sur le laboratoire sur l'ACP du livre *Introduction to Statistical Learning with Applications in R, second edition*, disponible gratuitement au <http://www.statlearning.com>.
+
+## Analyse exploratoire des données
+
+On utilise le jeu de données USArrests disponible automatiquement avec le logiciel R.
+
+### Contenu du jeu de données
+
+```{r}
+#help(USArrests) #Enlever le premier signe de commentaire pour obtenir l'aide
+head(USArrests)
+```
+
+[**Vos notes ici:**]{.underline} Le jeu de données contient...
+
+### Quelques statistiques descriptives univariées
+
+```{r}
+skimr::skim(USArrests)
+```
+
+Que remarquez-vous?\
+[**Vos notes ici:**]{.underline}
+
+### Analyse de la corrélation entre les variables
+
+Regardons maintenant la corrélation entre les variables. La fonction ci-dessous nous donne du même coup la densité de chacune des variables sur la diagonale, des nuages de points pour visualiser la relation entre les variables sous la diagonale et les coefficients de corrélation de Pearson entre chacune des paires au-dessus de la diagonale. Les astérisques donnent de l'information sur la valeur-p d'un test statistique dont l'hypothèse nulle est que la corrélation de Pearson entre les variables en question est égale à zéro (fonction `cor.test`).
+
+```{r}
+GGally::ggpairs(USArrests)
+```
+
+Que remarquez-vous?\
+[**Vos notes ici:**]{.underline}
+
+## Analyse en composantes principales de la matrice de corrélation
+
+On utilise pour cet exemple la fonction `prcomp` qui vient directement avec le logiciel R, ainsi que les fonctions graphiques de base. On commence par utiliser l'option `scale = TRUE` qui indique de standardiser les observations avant de faire l'ACP, ce qui correspond à faire l'ACP sur la matrice de corrélation. Que contient l'objet créé par la fonction `prcomp`?
+
+```{r}
+acp_USArrests <- prcomp(USArrests, scale = TRUE)
+names(acp_USArrests)
+```
+
+Deux des sous-objets donnent la moyenne et l'écart-type de chacune des variables, respectivement. Ces valeurs ont été utilisées pour standardiser les variables.
+
+```{r}
+acp_USArrests$center
+acp_USArrests$scale
+```
+
+L'objet fournit également l'écart-type des composantes principales obtenues.
+
+```{r}
+acp_USArrests$sdev
+```
+
+On peut donc calculer la variance de chacun des composantes principales et vérifier si les premières composantes principales expliquent une grande partie de la variabilité dans les données.
+
+```{r}
+#Les variances
+acp_var_USArrests <- acp_USArrests$sdev^2
+acp_var_USArrests
+
+#Proportion de variabilité expliquée par chaque composante
+acp_var_prop_USArrests <- acp_var_USArrests / sum(acp_var_USArrests) 
+
+#Visualisation
+par(mfrow = c(1, 2)) #Demande deux graphiques côte-à-côte
+plot(acp_var_prop_USArrests,
+     xlab = "Composante principale",
+     ylab = "Proportion de variance expliquée",
+     ylim = c(0, 1),
+     type = "b", 
+     pch = 16, 
+     las = 1
+     )
+plot(cumsum(acp_var_prop_USArrests),
+     xlab = "Composante principale",
+     ylab = "Proportion de variance expliquée",
+     ylim = c(0, 1), 
+     type = "b", 
+     pch = 16, 
+     las = 1
+     )
+par(mfrow = c(1,1)) #Revient à un seul graphique 
+```
+
+Que concluez-vous? Est-ce que ça semble une bonne idée de conserver quelques-unes des premières composantes principales?\
+[**Vos notes ici:**]{.underline}
+
+Le sous-objet `rotation` contient quant à lui les composantes principales. Il permet de voir quelles variables sont associées à chacune des composantes.
+
+```{r}
+acp_USArrests$rotation
+```
+
+Que concluez-vous? [**Vos notes ici:**]{.underline}
+
+Enfin, le sous-objet `x` donne les scores de toutes les observations dans l'espace des nouvelles composantes principales.
+
+```{r}
+head(acp_USArrests$x)
+```
+
+Il peut être intéressant de visualiser les composantes principales. Pour ce faire, on se limitera généralement à deux composantes.
+
+On peut visualiser les contributions des variables aux deux composantes principales.
+
+```{r}
+#Graphique des variables
+plot(acp_USArrests$rotation[,1:2])
+```
+
+Chacun des points correspond à une des variables. Etes-vous capable de faire l'association? [**Vos notes ici:**]{.underline}
+
+On peut aussi visualiser les observations dans l'espace des deux composantes principales.
+
+```{r}
+plot(acp_USArrests$x[,1:2], pch = 16)
+```
+
+Quelle est l'observation dans le coin supérieur gauche du graphique? [**Vos notes ici:**]{.underline}
+
+Bien sûr, les deux derniers graphiques produits sont peu informatifs. Il faudrait ajouter de l'information sur les points dans le graphique. La fonction `biplot` produit automatiquement une visualisation des variables et des observations avec cette information.
+
+```{r}
+biplot(acp_USArrests, scale = 0)
+```
+
+Rappelez-vous que les composantes principales sont uniques, sauf pour un changement de signe. On peut donc modifier un peu le graphique pour en faciliter l'interprétation. On copie la sortie et on modifie le signe des composantes.
+
+```{r}
+acp_USArrests_v2 <- acp_USArrests
+acp_USArrests_v2$rotation <- -acp_USArrests$rotation
+acp_USArrests_v2$x <- -acp_USArrests$x
+biplot(acp_USArrests_v2, scale = 0)
+```
+
+Le graphique reste compliqué à lire car trop chargé. On verra plus loin une alternative en utilisant les fonctions d'une autre librairie.
+
+## Analyse en composantes principales de la matrice de covariance
+
+Si on utilise l'option `scale = FALSE` dans la fonction `prcomp`, les variables seront utilisées telles qu'elles, sans standardisation. On obtiendra ainsi l'ACP de la matrice de covariance au lieu de l'ACP de la matrice de corrélation. Quel sera à votre avis l'impact sur les résultats? Vérifiez votre intutition.
+
+```{r}
+acp_USArrests_noscale <- prcomp(USArrests, scale = FALSE)
+
+```
+
+[**Vos notes ici:**]{.underline}
+
+# Exemple avec des données de décathlon
+
+Ce deuxième exemple inspiré de celui-ci <http://www.sthda.com/english/articles/31-principal-component-methods-in-r-practical-guide/118-principal-component-analysis-in-r-prcomp-vs-princomp/>.
+
+On utilise cette fois des données dans la librairie `factoextra`. On en profite pour utiliser des fonctions de la librairie qui sont plus intéressantes pour la visualisation. Le jeu de données se nomme `decathlon2`. Les 10 premières colonnes donnent les résultats de plusieurs athlètes à 10 épreuves lors d'une compétition de décathlon. Viennent ensuite le classement de chacun et le nombre de points accumulés, puis une variable indiquant de quel type de compétition il s'agit. On utilisera que les 23 premiers athlètes.
+
+```{r}
+data(decathlon2) 
+head(decathlon2)
+#help(decathlon2)
+```
+
+## Obtenir les composantes principales
+
+Je vous fournis les codes.
+
+```{r}
+pca_decathlon2 <- prcomp(decathlon2[1:23,1:10], scale = TRUE)
+
+#Regarder la variance expliquée
+fviz_eig(pca_decathlon2)
+
+#Bi-plot
+fviz_pca_biplot(pca_decathlon2,
+                repel = TRUE,
+                col.var = "#2E9FDF", # Couleur variables
+                col.ind = "#696969"  # Couleur individus
+                )
+
+#Graphique des individus 
+fviz_pca_ind(pca_decathlon2,
+             repel = TRUE
+             )
+
+#Graphique des variables
+fviz_pca_var(pca_decathlon2,
+             col.var = "contrib",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE
+             )
+
+```
+
+Quelles sont vos conclusions? [**Vos notes ici:**]{.underline}
+
+## Positionner un individu additionnel
+
+On peut aussi positionner les trois individus omis de l'analyse sur les composantes principales qu'on vient de trouver.
+
+Une première option est d'utiliser la fonction predict sur l'objet retourné par prcomp.
+
+```{r}
+individus_sup <- decathlon2[24:27, 1:10]
+individus_sup_coord <- predict(pca_decathlon2, newdata = individus_sup)
+individus_sup_coord
+```
+
+Que fait cette fonction exactement? On peut reproduire nous-mêmes ces résultats avec quelques calculs. On standardise d'abord les variables des nouvelles observations avec les moyennes et écarts-types utilisés pour l'ACP.
+
+```{r}
+individus_scaled <- scale(individus_sup, 
+                    center = pca_decathlon2$center,
+                    scale = pca_decathlon2$scale)
+```
+
+On définit maintenant une fonction pour calculer les coordonnées des individus à partir de leurs variables et de la matrice des composantes principales.
+
+```{r}
+calcul.coord <- function(individus, loadings){
+  r <- loadings*individus
+  apply(r, 2, sum)
+}
+```
+
+On applique ensuite cette fonction à notre matrice de données et on peut vérifier que les deux méthodes donnent les mêmes résultats
+
+```{r}
+individus_sup_coord_v2 <- t(apply(individus_scaled, 1, calcul.coord, pca_decathlon2$rotation ))
+
+max(individus_sup_coord_v2 - individus_sup_coord)
+```
+
+Et on peut facilement ajouter ces nouvelles observations à notre graphique des individus.
+
+```{r}
+graph_individus_decathlon <- fviz_pca_ind(pca_decathlon2, repel = TRUE)
+fviz_add(graph_individus_decathlon, individus_sup_coord, color ="blue")
+```
+
+## Ajouter une variable catégorique supplémentaire sur le graphique
+
+On peut aussi ajouter une autre variable à nos résultats, ici le type de compétiteur de décathlon, que l'on enregistre dans l'objet `groups`. On voit que les deux composantes principales permettent de bien diviser les deux types d'athlètes.
+
+```{r}
+groups <- as.factor(decathlon2$Competition[1:23])
+fviz_pca_ind(pca_decathlon2,
+             col.ind = groups, # Couleur selon le groupe
+             palette = c("#00AFBB",  "#FC4E07"),
+             addEllipses = TRUE, #
+             ellipse.type = "confidence",
+             legend.title = "Groupes",
+             repel = TRUE
+             )
+```
+
+Que représentent les ellipses dans le graphique? Validez votre intuition en cherchant dans l'aide.
+
+[**Vos notes ici:**]{.underline}
