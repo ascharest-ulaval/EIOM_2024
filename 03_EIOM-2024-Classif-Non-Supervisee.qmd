@@ -1,0 +1,163 @@
+---
+title: "EIOM 2024 <br> Partie 3 - Classification non-supervisée"
+author: "Anne-Sophie Charest"
+date: 2024-08-30
+format: 
+  html:
+    embed-resources: true
+    toc: true
+    toc-title: Plan
+    number-sections: true
+---
+
+Charger les librairies nécessaires :
+
+```{r, output = FALSE}
+library(ggplot2)
+library(factoextra)
+library(tidyverse)
+library(NbClust)
+```
+
+# Méthode k-moyennes
+
+On utilisera de nouveau les données USArrests. Rappelons qu'elles donnent pour 50 états américains le nombre d'arrestations par 100 000 habitants pour meutre, agression et viol ainsi que la proportion de la population vivant en centre urbain, tout cela pour l'année 1973.
+
+## Exemple avec USArrest et scale = TRUE
+
+On suggère généralement de mettre à l'échelle les variables avant d'utiliser l'algorithm k-moyennes donc c'est ce qu'on fera ici, avec la fonction `kmeans` qui vient avec R. Il est aussi mieux de toujours utiliser plus d'un point de départ aléatoire afin de s'assurer d'obtenir le maximum global.
+
+```{r}
+kmeans_USArrests_4 <- kmeans(scale(USArrests), centers = 4, nstart = 10)
+kmeans_USArrests_4
+```
+
+L'objet produit les moyennes de toutes les variables pour chacun des groupes, l'assignation de chacune des observations ainsi que de l'information sur la qualité de la classification.
+
+Vous devriez être capable de répondre aux questions ci-dessous :\
+- Combien y-a-t-il d'observations dans le troisième groupe?\
+- Quel groupe contient les états avec le moins de meutres par habitant?\
+- Est-ce que le Maine et le Vermont sont dans le même groupe?\
+- Quel groupe est le plus homogène?\
+[**Vos notes ici:**]{.underline}
+
+Il peut être intéressant de visualiser les résultats, surtout qu'on a ici que peu de variables. On peut simplement le faire à l'aide des fonction de base, en ajoutant la couleur correspondant au groupe auquel chaque observation appartient.
+
+```{r}
+pairs(USArrests, col = kmeans_USArrests_4$cluster+3, pch = 16)
+```
+
+La librairie `factoextra` contient une autre fonction pour visualiser rapidement les différents groupes.
+
+```{r}
+fviz_cluster(kmeans(scale(USArrests),4, nstart = 10),USArrests)
+fviz_cluster(kmeans(USArrests,4),USArrests)
+
+
+```
+
+Que représentent les axes? les polygones? [**Vos notes ici:**]{.underline}
+
+L'exemple ici permet en outre de voir facilement l'importance d'utiliser plusieurs points de départ différents. ROulez le code ci-dessous à plusieurs reprises. Que remarquez-vous? Comparez avec le résultat obtenu plus haut.
+
+```{r}
+fviz_cluster(kmeans(USArrests,4),USArrests)
+```
+
+[**Vos notes ici:**]{.underline}
+
+Enfin, notez que si on souhaite plutôt utiliser `ggplot` on devra d'abord ajouter le groupe au jeu de données original. On verra un exemple un peu plus loin.
+
+## Exemple avec USArrest et scale = FALSE
+
+Dans le premier exemple, nous avions standardisé les données avant d'utiliser l'agorithme k-moyennes. Les résultats auraient-ils à votre avis été différents si on avait omis cette étape? Valider votre hypothèse.
+
+```{r}
+# Ajouter votre code ici
+```
+
+[**Vos notes ici:**]{.underline}
+
+## Choisir la valeur de `k`
+
+Dans notre premier exemple, nous avons demandé 4 groupes, mais rien n'indiquait *a priori* que c'était le bon nombre de groupes à utiliser. On voudra habituellement appliquer l'algorithme avec plusieurs choix pour $k$ choisir ensuite le meilleur nombre de groupes selon certains critères.
+
+On peut d'abord regarder les résultats pour différents nombres de groupes.
+
+```{r}
+fviz_cluster(kmeans(scale(USArrests),2, nstart=10),USArrests)
+fviz_cluster(kmeans(scale(USArrests),3), nstart=10,USArrests)
+fviz_cluster(kmeans(scale(USArrests),4), nstart=10,USArrests)
+fviz_cluster(kmeans(scale(USArrests),5), nstart=10,USArrests)
+fviz_cluster(kmeans(scale(USArrests),9), nstart=10,USArrests)
+```
+
+Notez que ce n'est pas l'idéal de copier-coller le code ainsi. On pourrait écrire une boucle, mais une autre option est d'utiliser la fonction `map` de la librairie `purrr` dans le `tidyverse`. Celle-ci nous retourne une liste avec autant d'éléments que de valeurs de `k` choisies, neuf dans le code ci-dessous, chaque élément étant lui-même une liste avec les résulats de l'algorithm k-moyennes. 
+
+```{r}
+USArrests_scaled = scale(USArrests)
+out = map(1:9, ~kmeans(USArrests_scaled, .x, nstart = 10))
+str(out)
+```
+
+On peut même utiliser des fonctions de la librarie `broom`pour restructurer les résultats obtenus de façon à faciliter la création de graphiques. Pour un exemple, voir <https://www.tidymodels.org/learn/statistics/k-means/>.
+
+Une autre fonction de la librairie `factoextra` permet de rapidement comparer certains critères pour différentes valeurs de $k$.
+
+```{r}
+fviz_nbclust(scale(USArrests), kmeans, method = "wss", k.max = 10, nstart=10) 
+fviz_nbclust(scale(USArrests), kmeans, method = "silhouette", k.max = 10, nstart = 10) 
+fviz_nbclust(scale(USArrests), kmeans, method = "gap_stat", k.max = 10, nstart = 10) 
+```
+
+Que concluez-vous? [**Vos notes ici:**]{.underline}
+
+Enfin, il y a aussi la librarie NbClust qui fournit encore plus de critères de sélection. 
+
+```{r}
+library(NbClust)
+NbClust(USArrests, method = "kmeans")
+```
+
+Que concluez-vous? [**Vos notes ici:**]{.underline}
+
+
+
+# Classification hiérarchique ascendante
+
+## Exemple avec USArrests
+
+En plus de devoir choisir le nombre de groupes pour la classification, on peut tester différentes méthodes de classification hiérarchique ascendante. On montre ici un petit exemple. 
+
+On utilise la fonction `hclust` pour faire la classification. On doit donner en entrée une matrice de distances. La fonction `dist` calculera la matrice de distances euclidiennes entre les obervations par défaut, mais on pourrait aussi utiliser d'autres distances si désiré. Encore une fois, on recommande généralement de standardiser le jeu de données avant de calculer les distances. 
+
+```{r}
+hc_USArrests <- hclust(dist(scale(USArrests)), method = "average")
+hc_USArrests
+```
+
+On peut facilement visualiser les résultats. Notez que la deuxième version est plus facile à lire. 
+
+```{r}
+plot(hc_USArrests)
+plot(hc_USArrests, hang = -1)
+```
+
+La fonction `cutree` permet de couper le dendrogramme à l'endroit approprié pour créer un certain nombre de groupes. 
+
+```{r}
+grps = cutree(hc_USArrests, k = 3)
+grps
+table(grps) #Pour connaitre le nombre d'observations par groupe
+```
+
+On peut afficher la classification résultante sur le dendrogramme.
+
+```{r}
+plot(hc_USArrests, cex = 0.6)
+rect.hclust(hc_USArrests, k = 3) 
+plot(hc_USArrests, cex = 0.6)
+rect.hclust(hc_USArrests, k = 6, border = 2:8) #border met des couleurs différentes à chaque groupe
+```
+
+Notez qu'il existe des fonctions autres que celles illustrées ici pour faire et visualiser la classification hiérarchique ascendante. Voir par exemple ici : <https://www.tidymodels.org/learn/statistics/k-means/> 

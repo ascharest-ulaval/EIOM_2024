@@ -1,0 +1,104 @@
+---
+title: "EIOM 2024 <br> Partie 2 - Apprentissage supervisé"
+author: "Anne-Sophie Charest"
+date: 2024-08-30
+format: 
+  html:
+    embed-resources: true
+    toc: true
+    toc-title: Plan
+    number-sections: true
+---
+
+Charger les librairies nécessaires :
+
+```{r, output = FALSE}
+library("rpart")
+```
+
+Il existe une panoplie d'algorithmes pour faire de l'apprentissage supervisé (régression et classification). Nous présentons ici un seul exemple, avec un arbre de régression. Une référence intéressante avec plusieurs autres méthodes et exemples est *Introduction to Statistical Learning with Applications in R, second edition*, disponible gratuitement au <http://www.statlearning.com>.
+
+# Arbre de régresssion / classification
+
+On utilise le jeu de données `cu.summary` de la librairie `rpart`, laquelle permet d'obtenir un arbre de régression ou de classification. Que contient ce jeu de données?
+
+```{r }
+library(rpart)
+#help(cu.summary)
+summary(cu.summary)
+```
+
+## Construire l'arbre
+
+Disons qu'on souhaite prédire la fiabilité (*reliability*) d'une automobile à l'aide des autres variables. On peut facilement obtenir un arbre de régression.
+
+```{r }
+arbre <- rpart(Reliability ~ Price + Country + Mileage + Type,
+           data=cu.summary)
+arbre
+
+#On indique que 32 observations ont été supprimées pour cause de données manquantes; ce sont celles pour lesquelles la variable réponse n'est pas observée
+#Lorsque c'est une variable explicative qui est manquante, rpart l'inclut tout de même dans l'arbre.
+```
+
+On indique que 32 observations ont été effacées parce que manquantes. Quelles sont ces observations? Êtes-vous capable de comprendre le reste de la sortie? [**Vos notes ici:**]{.underline}
+
+## Visualisation
+
+Il est souvent préférable de visualiser l'arbre obtenu. Pour ce faire, on peut utiliser la fonction `plot`, mais il faut ensuite ajouter le texte sur les divisions. Les chiffres sous les feuilles sont le nombre d'observations dans chacune des catégories de la variable *reliability*
+
+```{r }
+plot(arbre, margin = 0.1) #margin laisse du blanc autour de l'arbre, pour ne pas couper le texte
+text(arbre, use.n = T, cex = 0.8)
+```
+
+Est-ce que l'arbre de classification utilise toutes les variables disponibles? D'après cet arbre, quelle sera la prédiction pour la première observation du jeu de données? [**Vos notes ici:**]{.underline}
+
+## Prévisions
+
+On peut évidemment obtenir les prévisions de l'arbre de façon plus efficace, avec la fonction `predict`. Vérifiez si vous aviez bien trouvé la prévision pour la première observation.
+
+```{r }
+head(predict(arbre)) 
+head(predict(arbre, type = "class"))
+```
+
+## Détails sur l'algorithme
+
+On indique dans l'aide de `rpart` que par défaut l'algorithme utilise le coefficient de Gini. Il est possible de modifier ce choix, par exemple en utilisant l'entropie croisée à la place.
+
+```{r }
+arbre.entro <- rpart(Reliability ~ Price + Country + Mileage + Type, 
+                 data=cu.summary, parms = list(split = "information"))
+plot(arbre.entro, margin = 0.1) 
+text(arbre.entro, use.n = T, cex = 0.8)
+```
+
+Dans ce cas-ci, on obtient le même arbre! On peut aussi modifier pluseirus autre options d'ajustement de l'arbre à l'aide la fonction `rpart.control`. Voir l'aide la fonction pour des détails.
+
+## Élagage
+
+Lorsqu'on ajuste un arbre, on obtient également l'information nécessaire pour l'élagage. On peut l'afficher de deux façons, et on peut facilement visualiser l'information.
+
+```{r }
+printcp(arbre)
+arbre$cptable
+```
+
+Dans les tableaux, la deuxième colonne donne le nombre de divisions, soit le nombre le feuilles moins un. La troisième colonne donne pour chaque nombre de divisions l'erreur relative à celle d'un arbre sans division.
+
+On peut également visualiser le tout.
+
+```{r }
+plotcp(arbre)
+```
+
+Il reste alors à choisir une valeur pour le *complexity parameter* (cp) puis à élaguer l'arbre à la valeur correspondante. Notez que le graphique montre l'estimé de l'erreur, avec des droites verticales de une erreur standard. La ligne horizontale est tracée à une erreur standard de plus que le plus petit estimé de l'erreur. On suggère souvent de choisir le modèle le plus simple dont l'erreur est inférieure à cette valeur ("*one standard deviation rule*"). Ici, on choisirait donc le modèle avec un cp de 0.16.
+
+```{r }
+arbre_elague = prune.rpart(arbre, cp = 0.16)
+plot(arbre_elague , margin = 0.1)
+text(arbre_elague ,use.n = T, cex = 0.8)
+```
+
+On choisit ici un arbre beaucoup plus simple!
